@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { resolveBrand, resolveMarket } from "@/lib/qloo";
-import { buildReport } from "@/lib/report";
-import { maybeEnhanceNarrative } from "@/lib/narrative";
+import { runPipeline } from "@/lib/agents";
 
 export async function POST(req: NextRequest) {
   try {
@@ -13,20 +11,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Pick a target market." }, { status: 400 });
     }
 
-    const [{ profile, mock: brandMock }, { market: target, mock: marketMock }] =
-      await Promise.all([resolveBrand(brand), resolveMarket(targetMarket)]);
-
-    let homeName = "—";
-    if (homeMarket && typeof homeMarket === "string" && homeMarket !== targetMarket) {
-      try {
-        homeName = (await resolveMarket(homeMarket)).market.name;
-      } catch {
-        homeName = "—";
-      }
-    }
-
-    const report = buildReport(profile, homeName, target, brandMock || marketMock);
-    report.narrative = await maybeEnhanceNarrative(report);
+    const report = await runPipeline(brand, homeMarket, targetMarket);
     return NextResponse.json(report);
   } catch (e) {
     console.error("analyze failed", e);
