@@ -6,10 +6,10 @@ import { MARKETS, BRANDS } from "@/lib/mock";
 
 type Phase = "idle" | "loading" | "done" | "error";
 
-const VERDICT_COPY: Record<string, string> = {
-  LOVE: "Cleared for launch",
-  RISKY: "Proceed with caution",
-  CANCEL: "Do not launch as-is",
+const HEADLINE: Record<string, { text: string; neg: boolean }> = {
+  LOVE: { text: "Cleared for launch.", neg: false },
+  RISKY: { text: "Proceed with caution.", neg: false },
+  CANCEL: { text: "Do not launch.", neg: true },
 };
 
 export default function Home() {
@@ -49,26 +49,32 @@ export default function Home() {
     }
   }
 
-  const verdictClass = report ? report.verdict.toLowerCase() : "";
-  const verdictColor =
-    report?.verdict === "LOVE" ? "var(--love)" : report?.verdict === "RISKY" ? "var(--risky)" : "var(--cancel)";
+  const headline = report ? HEADLINE[report.verdict] : null;
+  const today = new Date().toLocaleDateString("en-GB", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  }).toUpperCase();
 
   return (
     <div className="wrap">
-      <p className="eyebrow">Cultural-fit intelligence</p>
-      <h1 className="wordmark">
-        fauxpas<span className="dot">.</span>
-      </h1>
-      <p className="tagline">
-        Find out if a new market will <strong>love your brand — or cancel it</strong> —{" "}
-        <em>before</em> you launch and embarrass yourself. We scan the cultural fit against the
-        taste graph and hand you the full risk report.
-      </p>
-      <span className={`mode-pill${mockMode ? "" : " live"}`}>
-        {mockMode ? "● mock data mode" : "● live qloo taste graph"}
-      </span>
+      <header className="masthead">
+        <div className="dateline">
+          <span>Cultural-fit intelligence</span>
+          <span>{today}</span>
+        </div>
+        <h1>
+          fauxpas<span className="period">.</span>
+        </h1>
+        <p className="sub">
+          Will a new market <strong>love your brand — or cancel it</strong>? We scan the
+          cultural fit against the taste graph and file the full risk dossier,{" "}
+          <em>before</em> you launch and embarrass yourself.
+        </p>
+      </header>
 
-      <form className="card" onSubmit={runScan}>
+      <form className="new-assessment" onSubmit={runScan}>
+        <h2>Open a new dossier</h2>
         <div className="field">
           <label htmlFor="brand">Brand</label>
           <input
@@ -108,14 +114,17 @@ export default function Home() {
           </div>
         </div>
         <button className="scan" type="submit" disabled={phase === "loading" || !brand.trim()}>
-          {phase === "loading" ? "Scanning the culture…" : "Run the scan"}
+          {phase === "loading" ? "Compiling dossier…" : "File the dossier"}
         </button>
-        <p className="hint">Takes about two seconds. No signup, no mercy.</p>
+        <p className="form-note">
+          Takes about two seconds. No signup, no mercy. Data:{" "}
+          {mockMode ? "mock cultural data" : "live Qloo taste graph"}.
+        </p>
       </form>
 
       {phase === "idle" && (
         <div className="empty">
-          Your risk report lands here.
+          No dossier on file yet.
           <br />
           Try <strong>Heineken → Riyadh</strong> if you want to watch something burn.
         </div>
@@ -123,77 +132,111 @@ export default function Home() {
 
       {phase === "loading" && (
         <div className="skeleton">
-          <div className="sk" style={{ height: 72 }} />
-          <div className="sk" style={{ height: 28, width: "60%" }} />
-          <div className="sk" style={{ height: 90 }} />
-          <div className="sk" style={{ height: 28, width: "80%" }} />
-          <div className="sk" style={{ height: 120 }} />
+          <div className="sk" style={{ height: 60 }} />
+          <div className="sk" style={{ height: 24, width: "55%" }} />
+          <div className="sk" style={{ height: 110 }} />
+          <div className="sk" style={{ height: 24, width: "75%" }} />
         </div>
       )}
 
       {phase === "error" && <div className="error-box">{error}</div>}
 
-      {phase === "done" && report && (
-        <div className="report">
-          <div className="stamp-row">
-            <div className={`stamp ${verdictClass}`}>{report.verdict}</div>
-            <div className="score-block">
-              <div className="score-num">
-                {report.score}
-                <small>/100</small>
-              </div>
-              <div className="score-bar">
-                <div
-                  className="score-fill"
-                  style={{ width: `${report.score}%`, background: verdictColor }}
-                />
-              </div>
-              <div className="score-label">
-                {VERDICT_COPY[report.verdict]} · {report.brandName} → {report.targetMarket}
-              </div>
-            </div>
+      {phase === "done" && report && headline && (
+        <article className="dossier">
+          <div className="kicker">
+            <span>
+              Risk assessment · {report.brandName} → {report.targetMarket}
+            </span>
+            <span className="file-no">Nº {report.score.toString().padStart(3, "0")}</span>
           </div>
 
-          <p className="narrative">{report.narrative}</p>
+          <h2 className="verdict">
+            {headline.neg ? (
+              <span className="neg">{headline.text}</span>
+            ) : (
+              headline.text
+            )}
+          </h2>
+
+          <div className="score-line">
+            <span className="num">
+              {report.score}
+              <small>/100</small>
+            </span>
+            <span className="cap">Fit score · {report.verdict}</span>
+          </div>
+
+          <p className="standfirst">{report.narrative}</p>
+
+          <dl className="facts">
+            <div className="fact">
+              <dt>Subject</dt>
+              <dd>
+                <strong>{report.brandName}</strong> · {report.brandCategory} — {report.brandBlurb}
+              </dd>
+            </div>
+            <div className="fact">
+              <dt>Target</dt>
+              <dd>
+                <strong>{report.targetMarket}</strong> — {report.targetBlurb}
+              </dd>
+            </div>
+            <div className="fact">
+              <dt>Source</dt>
+              <dd>
+                {report.mock
+                  ? "Built-in mock cultural data. Set QLOO_API_KEY to query the live taste graph."
+                  : "Live Qloo taste graph."}
+              </dd>
+            </div>
+          </dl>
 
           {report.tabooHits.length > 0 && (
             <div className="section">
-              <h2>Third rails</h2>
+              <h3>
+                <span className="sec-no">01</span>Third rails
+              </h3>
               {report.tabooHits.map((t) => (
-                <div className="taboo" key={t.tabooId}>
-                  <div className="t-label">
-                    {t.label} — sensitivity {t.sensitivity}/100
+                <div className="rail" key={t.tabooId}>
+                  <div className="rail-label">
+                    {t.label}
+                    <span className="sens">sensitivity {t.sensitivity}/100</span>
                   </div>
-                  <div className="t-detail">{t.detail}</div>
+                  <div className="rail-detail">{t.detail}</div>
                 </div>
               ))}
             </div>
           )}
 
           <div className="section">
-            <h2>Fault lines — brand vs market</h2>
-            <div className="legend">
-              <span>
-                <i className="b" /> brand
-              </span>
-              <span>
-                <i className="m" /> market
-              </span>
-            </div>
+            <h3>
+              <span className="sec-no">{report.tabooHits.length > 0 ? "02" : "01"}</span>
+              Fault lines — brand vs market
+            </h3>
             {report.gaps.slice(0, 4).map((g) => (
-              <div className="gap" key={g.domain}>
-                <div className="gap-top">
-                  <span>{g.label}</span>
+              <div className="fault" key={g.domain}>
+                <div className="fault-head">
+                  <span className="domain">{g.label}</span>
                   <span className="nums">
-                    {g.brand} vs {g.market}
+                    {g.brand} / {g.market}
                   </span>
                 </div>
-                <div className="gap-bars">
-                  <div className="gap-bar market" style={{ width: `${g.market}%` }} />
-                  <div className="gap-bar brand" style={{ width: `${g.brand}%` }} />
+                <div className="bars">
+                  <div className="bar-row">
+                    <span className="who">Brand</span>
+                    <div className="track">
+                      <div className="fill brand" style={{ width: `${g.brand}%` }} />
+                    </div>
+                  </div>
+                  <div className="bar-row">
+                    <span className="who">Market</span>
+                    <div className="track">
+                      <div className="fill market" style={{ width: `${g.market}%` }} />
+                    </div>
+                  </div>
                 </div>
                 {Math.abs(g.gap) >= 22 && (
-                  <div className={`gap-note ${g.direction}`}>
+                  <div className={`note${g.direction === "clash" ? " clash" : ""}`}>
                     {g.direction === "clash"
                       ? `The brand pushes ${Math.abs(g.gap)} points harder than the market wants.`
                       : `The market wants ${Math.abs(g.gap)} points more than the brand delivers.`}
@@ -204,31 +247,29 @@ export default function Home() {
           </div>
 
           <div className="section">
-            <h2>De-risking moves</h2>
+            <h3>
+              <span className="sec-no">{report.tabooHits.length > 0 ? "03" : "02"}</span>
+              Recommended moves
+            </h3>
             {report.moves.map((m, i) => (
               <div className="move" key={i}>
-                <span className="n">{i + 1}</span>
-                <span>{m}</span>
+                <span className="n">{i + 1}.</span>
+                <p>{m}</p>
               </div>
             ))}
           </div>
 
-          <div className="meta">
-            <strong>{report.brandName}</strong> · {report.brandCategory} — {report.brandBlurb}
-            <br />
-            <strong>{report.targetMarket}</strong> — {report.targetBlurb}
-            <br />
-            {report.mock
-              ? "Report generated from built-in mock cultural data. Set QLOO_API_KEY to query the live taste graph."
-              : "Report generated from the live Qloo taste graph."}
+          <div className="colophon">
+            Dossier compiled {today.toLowerCase()} · {report.brandName} × {report.targetMarket} ·
+            verdicts are guidance, not gospel.
           </div>
-        </div>
+        </article>
       )}
 
       <footer>
         fauxpas — built for the Qloo Agentic Hackathon. Cultural fit, quantified.
         <br />
-        Taste affinities {mockMode ? "are illustrative mock data" : "come from the Qloo taste graph"}; verdicts are guidance, not gospel.
+        Taste affinities {mockMode ? "are illustrative mock data" : "come from the Qloo taste graph"}.
       </footer>
     </div>
   );
