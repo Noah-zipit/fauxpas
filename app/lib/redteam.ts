@@ -4,8 +4,7 @@
 // and scores. An optional Groq pass can sharpen the wording when a key exists.
 
 import { RiskReport } from "./report";
-
-const GROQ_KEY = process.env.GROQ_API_KEY || "";
+import { chat } from "./llm";
 
 function deterministicObjections(r: RiskReport): string[] {
   const out: string[] = [];
@@ -61,31 +60,18 @@ function deterministicObjections(r: RiskReport): string[] {
 
 export async function buildObjections(r: RiskReport): Promise<{ objections: string[]; sharpened: boolean }> {
   const base = deterministicObjections(r);
-  if (!GROQ_KEY || base.length === 0) return { objections: base, sharpened: false };
-  try {
-    const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${GROQ_KEY}`, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: "llama-3.3-70b-versatile",
-        temperature: 0.8,
-        max_tokens: 400,
-        messages: [
-          {
-            role: "system",
-            content:
-              "You are a ruthless red-team analyst. Sharpen each objection below into one vivid paragraph. Keep every number and fact. No hype, no emojis, no softening.",
-          },
-          { role: "user", content: base.map((b, i) => `${i + 1}. ${b}`).join("\n") },
-        ],
-      }),
-    });
-    if (!res.ok) return { objections: base, sharpened: false };
-    const data = await res.json();
-    const text: string = data?.choices?.[0]?.message?.content?.trim() || "";
-    const parts = text.split(/\n(?=\d+\.\s)/).map((p: string) => p.replace(/^\d+\.\s*/, "").trim()).filter(Boolean);
-    return parts.length > 0 ? { objections: parts.slice(0, 3), sharpened: true } : { objections: base, sharpened: false };
-  } catch {
-    return { objections: base, sharpened: false };
-  }
+  if (base.length === 0) return { objections: base, sharpened: false };
+  const sharpened = await chat({
+    system:
+      "You are a ruthless red-team analyst. Sharpen each objection below into one vivid paragraph. Keep every number and fact. No hype, no emojis, no softening.",
+    user: base.map((b, i) => `${i + 1}. ${b}`).join("\n"),
+    temperature: 0.8,
+    maxTokens: 400,
+  });
+  if (!sharpened) return { objections: base, sharpened: false };
+  const parts = sharpened
+    .split(/\n(?=\d+\.\s)/)
+    .map((p: string) => p.replace(/^\d+\.\s*/, "").trim())
+    .filter(Boolean);
+  return parts.length > 0 ? { objections: parts.slice(0, 3), sharpened: true } : { objections: base, sharpened: false };
 }
