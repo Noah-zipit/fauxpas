@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import type { RiskReport } from "@/lib/report";
+import { AGENT_LABEL } from "@/lib/report";
 import { MARKETS, BRANDS } from "@/lib/mock";
 
 type Phase = "idle" | "loading" | "done" | "error";
@@ -19,12 +20,16 @@ export default function Home() {
   const [phase, setPhase] = useState<Phase>("idle");
   const [report, setReport] = useState<RiskReport | null>(null);
   const [error, setError] = useState("");
-  const [mockMode, setMockMode] = useState(true);
+  const [brandLive, setBrandLive] = useState(false);
+  const [marketLive, setMarketLive] = useState(false);
 
   useEffect(() => {
     fetch("/api/status")
       .then((r) => r.json())
-      .then((d) => setMockMode(!!d.mock))
+      .then((d) => {
+        setBrandLive(!!d.brandLive);
+        setMarketLive(!!d.marketLive);
+      })
       .catch(() => {});
   }, []);
 
@@ -55,6 +60,12 @@ export default function Home() {
     month: "short",
     year: "numeric",
   }).toUpperCase();
+  const provenance =
+    brandLive && marketLive
+      ? "live Qloo signals"
+      : brandLive || marketLive
+        ? "mixed: live + curated"
+        : "mock cultural data";
 
   return (
     <div className="wrap">
@@ -117,8 +128,7 @@ export default function Home() {
           {phase === "loading" ? "Compiling dossier…" : "File the dossier"}
         </button>
         <p className="form-note">
-          Takes about two seconds. No signup, no mercy. Data:{" "}
-          {mockMode ? "mock cultural data" : "live Qloo taste graph"}.
+          Takes about two seconds. No signup, no mercy. Data: {provenance}.
         </p>
       </form>
 
@@ -182,11 +192,12 @@ export default function Home() {
               </dd>
             </div>
             <div className="fact">
-              <dt>Source</dt>
+              <dt>Signal</dt>
               <dd>
-                {report.mock
-                  ? "Built-in mock cultural data. Set QLOO_API_KEY to query the live taste graph."
-                  : "Live Qloo taste graph."}
+                Brand profile:{" "}
+                <strong>{report.brandLive ? "live Qloo taste graph" : "curated profile"}</strong>
+                {" · "}Market vector:{" "}
+                <strong>{report.marketLive ? "live Qloo venue signal" : "curated priors"}</strong>
               </dd>
             </div>
           </dl>
@@ -259,6 +270,40 @@ export default function Home() {
             ))}
           </div>
 
+          {report.objections.length > 0 && (
+            <div className="section dissent">
+              <h3>
+                <span className="sec-no">✕</span>
+                The dissent — filed by the Red Team
+              </h3>
+              <p className="dissent-lede">
+                Three agents built the case for this launch. The fourth tried to kill it.
+              </p>
+              {report.objections.map((o, i) => (
+                <div className="objection" key={i}>
+                  <span className="n">{i + 1}.</span>
+                  <p>{o}</p>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {report.trace.length > 0 && (
+            <div className="section ledger">
+              <h3>
+                <span className="sec-no">§</span>
+                Compilation ledger
+              </h3>
+              {report.trace.map((s, i) => (
+                <div className="ledger-row" key={i}>
+                  <span className="ledger-agent">{AGENT_LABEL[s.agent]}</span>
+                  <span className="ledger-detail">{s.detail}</span>
+                  <span className="ledger-ms">{s.ms}ms</span>
+                </div>
+              ))}
+            </div>
+          )}
+
           <div className="colophon">
             Dossier compiled {today.toLowerCase()} · {report.brandName} × {report.targetMarket} ·
             verdicts are guidance, not gospel.
@@ -269,7 +314,9 @@ export default function Home() {
       <footer>
         fauxpas — built for the Qloo Agentic Hackathon. Cultural fit, quantified.
         <br />
-        Taste affinities {mockMode ? "are illustrative mock data" : "come from the Qloo taste graph"}.
+        {brandLive && marketLive
+          ? "Both sides of this dossier run on live Qloo signals."
+          : "Taste affinities are illustrative mock data where the live graph is unavailable."}
       </footer>
     </div>
   );
