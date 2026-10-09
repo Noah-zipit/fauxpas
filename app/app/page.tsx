@@ -13,7 +13,23 @@ const HEADLINE: Record<string, { text: string; neg: boolean }> = {
   CANCEL: { text: "Do not launch.", neg: true },
 };
 
+interface ExamTurn {
+  q: string;
+  a: string;
+  tools: number;
+}
+
+interface VersusResult {
+  a: RiskReport;
+  b: RiskReport;
+  winner: string | null;
+  judgeNote: string;
+}
+
 export default function Home() {
+  const [mode, setMode] = useState<"single" | "versus">("single");
+
+  // single dossier
   const [brand, setBrand] = useState("");
   const [homeMarket, setHomeMarket] = useState("new-york");
   const [targetMarket, setTargetMarket] = useState("riyadh");
@@ -22,6 +38,18 @@ export default function Home() {
   const [error, setError] = useState("");
   const [brandLive, setBrandLive] = useState(false);
   const [marketLive, setMarketLive] = useState(false);
+
+  // versus
+  const [brandA, setBrandA] = useState("");
+  const [brandB, setBrandB] = useState("");
+  const [vPhase, setVPhase] = useState<Phase>("idle");
+  const [versus, setVersus] = useState<VersusResult | null>(null);
+  const [vError, setVError] = useState("");
+
+  // cross-examination
+  const [examQ, setExamQ] = useState("");
+  const [examLog, setExamLog] = useState<ExamTurn[]>([]);
+  const [examBusy, setExamBusy] = useState(false);
 
   useEffect(() => {
     fetch("/api/status")
@@ -38,6 +66,7 @@ export default function Home() {
     if (!brand.trim()) return;
     setPhase("loading");
     setError("");
+    setExamLog([]);
     try {
       const res = await fetch("/api/analyze", {
         method: "POST",
@@ -54,6 +83,49 @@ export default function Home() {
     }
   }
 
+  async function runVersus(e: React.FormEvent) {
+    e.preventDefault();
+    if (!brandA.trim() || !brandB.trim()) return;
+    setVPhase("loading");
+    setVError("");
+    try {
+      const res = await fetch("/api/versus", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ brandA, brandB, targetMarket }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Bout failed");
+      setVersus(data);
+      setVPhase("done");
+    } catch (err: any) {
+      setVError(err.message || "The bout fell apart. Try again.");
+      setVPhase("error");
+    }
+  }
+
+  async function askAnalyst(e: React.FormEvent) {
+    e.preventDefault();
+    if (!examQ.trim() || !report || examBusy) return;
+    const q = examQ.trim();
+    setExamQ("");
+    setExamBusy(true);
+    try {
+      const res = await fetch("/api/ask", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ question: q, report, history: examLog }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "The analyst lost the thread.");
+      setExamLog((log) => [...log, data]);
+    } catch (err: any) {
+      setExamLog((log) => [...log, { q, a: err.message || "The analyst lost the thread.", tools: 0 }]);
+    } finally {
+      setExamBusy(false);
+    }
+  }
+
   const headline = report ? HEADLINE[report.verdict] : null;
   const today = new Date().toLocaleDateString("en-GB", {
     day: "2-digit",
@@ -67,6 +139,16 @@ export default function Home() {
         ? "mixed: live + curated"
         : "mock cultural data";
 
+  const marketOptions = (
+    <>
+      {MARKETS.map((m) => (
+        <option key={m.id} value={m.id}>
+          {m.name}, {m.country}
+        </option>
+      ))}
+    </>
+  );
+
   return (
     <div className="wrap">
       <header className="masthead">
@@ -78,61 +160,118 @@ export default function Home() {
           fauxpas<span className="period">.</span>
         </h1>
         <p className="sub">
-          Will a new market <strong>love your brand — or cancel it</strong>? We scan the
-          cultural fit against the taste graph and file the full risk dossier,{" "}
+          Will a new market <strong>love your brand — or cancel it</strong>? Four agents scan
+          the taste graph, argue about it, and file the full risk dossier,{" "}
           <em>before</em> you launch and embarrass yourself.
         </p>
       </header>
 
-      <form className="new-assessment" onSubmit={runScan}>
-        <h2>Open a new dossier</h2>
-        <div className="field">
-          <label htmlFor="brand">Brand</label>
-          <input
-            id="brand"
-            list="brand-suggestions"
-            placeholder="e.g. McDonald's, Nike, Heineken…"
-            value={brand}
-            onChange={(e) => setBrand(e.target.value)}
-            autoComplete="off"
-          />
+      <div className="mode-toggle" role="tablist" aria-label="Mode">
+        <button
+          role="tab"
+          aria-selected={mode === "single"}
+          className={mode === "single" ? "active" : ""}
+          onClick={() => setMode("single")}
+          type="button"
+        >
+          Single dossier
+        </button>
+        <button
+          role="tab"
+          aria-selected={mode === "versus"}
+          className={mode === "versus" ? "active" : ""}
+          onClick={() => setMode("versus")}
+          type="button"
+        >
+          Versus
+        </button>
+      </div>
+
+      {mode === "single" ? (
+        <form className="new-assessment" onSubmit={runScan}>
+          <h2>Open a new dossier</h2>
+          <div className="field">
+            <label htmlFor="brand">Brand</label>
+            <input
+              id="brand"
+              list="brand-suggestions"
+              placeholder="e.g. McDonald's, Nike, Heineken…"
+              value={brand}
+              onChange={(e) => setBrand(e.target.value)}
+              autoComplete="off"
+            />
+            <datalist id="brand-suggestions">
+              {BRANDS.map((b) => (
+                <option key={b.id} value={b.name} />
+              ))}
+            </datalist>
+          </div>
+          <div className="row2">
+            <div className="field">
+              <label htmlFor="home">Home market</label>
+              <select id="home" value={homeMarket} onChange={(e) => setHomeMarket(e.target.value)}>
+                {marketOptions}
+              </select>
+            </div>
+            <div className="field">
+              <label htmlFor="target">Target market</label>
+              <select id="target" value={targetMarket} onChange={(e) => setTargetMarket(e.target.value)}>
+                {marketOptions}
+              </select>
+            </div>
+          </div>
+          <button className="scan" type="submit" disabled={phase === "loading" || !brand.trim()}>
+            {phase === "loading" ? "Agents at work…" : "File the dossier"}
+          </button>
+          <p className="form-note">
+            Takes a few seconds. No signup, no mercy. Data: {provenance}.
+          </p>
+        </form>
+      ) : (
+        <form className="new-assessment" onSubmit={runVersus}>
+          <h2>Stage a bout</h2>
+          <div className="row2">
+            <div className="field">
+              <label htmlFor="brandA">Contender A</label>
+              <input
+                id="brandA"
+                list="brand-suggestions"
+                placeholder="e.g. Nike"
+                value={brandA}
+                onChange={(e) => setBrandA(e.target.value)}
+                autoComplete="off"
+              />
+            </div>
+            <div className="field">
+              <label htmlFor="brandB">Contender B</label>
+              <input
+                id="brandB"
+                placeholder="e.g. Adidas"
+                value={brandB}
+                onChange={(e) => setBrandB(e.target.value)}
+                autoComplete="off"
+              />
+            </div>
+          </div>
           <datalist id="brand-suggestions">
             {BRANDS.map((b) => (
               <option key={b.id} value={b.name} />
             ))}
           </datalist>
-        </div>
-        <div className="row2">
           <div className="field">
-            <label htmlFor="home">Home market</label>
-            <select id="home" value={homeMarket} onChange={(e) => setHomeMarket(e.target.value)}>
-              {MARKETS.map((m) => (
-                <option key={m.id} value={m.id}>
-                  {m.name}, {m.country}
-                </option>
-              ))}
+            <label htmlFor="vtarget">Arena (target market)</label>
+            <select id="vtarget" value={targetMarket} onChange={(e) => setTargetMarket(e.target.value)}>
+              {marketOptions}
             </select>
           </div>
-          <div className="field">
-            <label htmlFor="target">Target market</label>
-            <select id="target" value={targetMarket} onChange={(e) => setTargetMarket(e.target.value)}>
-              {MARKETS.map((m) => (
-                <option key={m.id} value={m.id}>
-                  {m.name}, {m.country}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
-        <button className="scan" type="submit" disabled={phase === "loading" || !brand.trim()}>
-          {phase === "loading" ? "Compiling dossier…" : "File the dossier"}
-        </button>
-        <p className="form-note">
-          Takes about two seconds. No signup, no mercy. Data: {provenance}.
-        </p>
-      </form>
+          <button className="scan" type="submit" disabled={vPhase === "loading" || !brandA.trim() || !brandB.trim()}>
+            {vPhase === "loading" ? "Bout in progress…" : "Start the bout"}
+          </button>
+          <p className="form-note">Both brands get the full four-agent treatment. The judge decides.</p>
+        </form>
+      )}
 
-      {phase === "idle" && (
+      {mode === "single" && phase === "idle" && (
         <div className="empty">
           No dossier on file yet.
           <br />
@@ -140,7 +279,7 @@ export default function Home() {
         </div>
       )}
 
-      {phase === "loading" && (
+      {mode === "single" && phase === "loading" && (
         <div className="skeleton">
           <div className="sk" style={{ height: 60 }} />
           <div className="sk" style={{ height: 24, width: "55%" }} />
@@ -149,9 +288,68 @@ export default function Home() {
         </div>
       )}
 
-      {phase === "error" && <div className="error-box">{error}</div>}
+      {mode === "single" && phase === "error" && <div className="error-box">{error}</div>}
 
-      {phase === "done" && report && headline && (
+      {mode === "versus" && vPhase === "loading" && (
+        <div className="skeleton">
+          <div className="sk" style={{ height: 60 }} />
+          <div className="sk" style={{ height: 90 }} />
+          <div className="sk" style={{ height: 90 }} />
+        </div>
+      )}
+
+      {mode === "versus" && vPhase === "error" && <div className="error-box">{vError}</div>}
+
+      {mode === "versus" && vPhase === "done" && versus && (
+        <article className="dossier">
+          <div className="kicker">
+            <span>
+              Versus · {versus.a.targetMarket}
+            </span>
+            <span className="file-no">BOUT Nº {versus.a.score + versus.b.score}</span>
+          </div>
+          <h2 className="verdict">
+            {versus.winner ? (
+              <>
+                {versus.winner} <span className="neg">takes {versus.a.targetMarket.split(",")[0]}.</span>
+              </>
+            ) : (
+              "A draw."
+            )}
+          </h2>
+          <p className="standfirst">{versus.judgeNote}</p>
+
+          {[versus.a, versus.b].map((r) => (
+            <div className="contender" key={r.brandName}>
+              <div className="contender-head">
+                <span className="contender-name">{r.brandName}</span>
+                <span className="contender-score">
+                  {r.score}
+                  <small>/100</small> · {r.verdict}
+                </span>
+              </div>
+              <div className="contender-gaps">
+                {r.gaps.slice(0, 2).map((g) => (
+                  <span key={g.domain}>
+                    {g.label}: {g.brand}v{g.market}
+                  </span>
+                ))}
+                {r.tabooHits.length > 0 && (
+                  <span className="contender-taboo">
+                    ⚠ {r.tabooHits.map((t) => t.label).join(", ")}
+                  </span>
+                )}
+              </div>
+            </div>
+          ))}
+
+          <div className="colophon">
+            Both contenders received the full four-agent dossier treatment. Full reports available in single-dossier mode.
+          </div>
+        </article>
+      )}
+
+      {mode === "single" && phase === "done" && report && headline && (
         <article className="dossier">
           <div className="kicker">
             <span>
@@ -161,11 +359,7 @@ export default function Home() {
           </div>
 
           <h2 className="verdict">
-            {headline.neg ? (
-              <span className="neg">{headline.text}</span>
-            ) : (
-              headline.text
-            )}
+            {headline.neg ? <span className="neg">{headline.text}</span> : headline.text}
           </h2>
 
           <div className="score-line">
@@ -287,6 +481,39 @@ export default function Home() {
               ))}
             </div>
           )}
+
+          <div className="section exam">
+            <h3>
+              <span className="sec-no">◈</span>
+              Cross-examine the analyst
+            </h3>
+            <p className="dissent-lede">
+              Question the dossier. The analyst answers from the file — and runs fresh live scans when your question needs new data.
+            </p>
+            {examLog.map((t, i) => (
+              <div className="exam-turn" key={i}>
+                <p className="exam-q">
+                  <span className="n">Q.</span> {t.q}
+                </p>
+                <p className="exam-a">
+                  <span className="n">A.</span> {t.a}
+                  {t.tools > 0 && <span className="exam-tools"> · {t.tools} live scan{t.tools > 1 ? "s" : ""} run</span>}
+                </p>
+              </div>
+            ))}
+            <form className="exam-form" onSubmit={askAnalyst}>
+              <input
+                value={examQ}
+                onChange={(e) => setExamQ(e.target.value)}
+                placeholder="e.g. Who would win here, Nike or Adidas?"
+                aria-label="Question for the analyst"
+                maxLength={500}
+              />
+              <button type="submit" disabled={examBusy || !examQ.trim()}>
+                {examBusy ? "Consulting…" : "Ask"}
+              </button>
+            </form>
+          </div>
 
           {report.trace.length > 0 && (
             <div className="section ledger">
