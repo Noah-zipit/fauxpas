@@ -370,6 +370,59 @@ button.scan:disabled { opacity: 0.5; cursor: wait; }
 
 .move p { margin: 0; font-size: 15px; line-height: 1.65; }
 
+/* ---------- the dissent (red team) ---------- */
+.dissent h3 { border-bottom-color: var(--red); }
+
+.dissent-lede {
+  font-size: 13.5px;
+  font-style: italic;
+  color: var(--ink-soft);
+  margin: 10px 0 4px;
+}
+
+.objection { padding: 14px 0 14px 16px; border-bottom: 1px solid var(--rule); border-left: 3px solid var(--red); display: flex; gap: 14px; }
+.objection:last-child { border-bottom: none; }
+
+.objection .n {
+  font-family: "Fraunces", Georgia, serif;
+  font-weight: 700;
+  font-size: 22px;
+  color: var(--red);
+  flex: none;
+  line-height: 1.3;
+}
+
+.objection p { margin: 0; font-size: 15px; line-height: 1.65; }
+
+/* ---------- compilation ledger ---------- */
+.ledger-row {
+  display: grid;
+  grid-template-columns: 92px 1fr auto;
+  gap: 12px;
+  align-items: baseline;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--rule);
+  font-size: 13px;
+}
+.ledger-row:last-child { border-bottom: none; }
+
+.ledger-agent {
+  font-size: 10.5px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.ledger-detail { color: var(--ink-soft); line-height: 1.55; }
+
+.ledger-ms {
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 12px;
+  color: var(--ink-faint);
+  white-space: nowrap;
+}
+
 .colophon {
   margin-top: 34px;
   padding-top: 14px;
