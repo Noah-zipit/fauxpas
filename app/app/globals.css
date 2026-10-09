@@ -423,6 +423,131 @@ button.scan:disabled { opacity: 0.5; cursor: wait; }
   white-space: nowrap;
 }
 
+/* ---------- mode toggle ---------- */
+.mode-toggle {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  border: 1px solid var(--ink);
+  margin-top: 26px;
+}
+
+.mode-toggle button {
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  font-family: inherit;
+  font-size: 12px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  font-weight: 600;
+  color: var(--ink-soft);
+  padding: 12px;
+  cursor: pointer;
+}
+
+.mode-toggle button.active {
+  background: var(--ink);
+  color: var(--paper);
+}
+
+/* ---------- versus ---------- */
+.contender {
+  border: 1px solid var(--rule);
+  margin-top: 12px;
+  padding: 14px 16px;
+}
+
+.contender-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 8px;
+}
+
+.contender-name {
+  font-family: "Fraunces", Georgia, serif;
+  font-weight: 700;
+  font-size: 22px;
+}
+
+.contender-score {
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 14px;
+  color: var(--ink-soft);
+}
+
+.contender-score small { font-size: 11px; }
+
+.contender-gaps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+
+.contender-taboo { color: var(--red-deep); }
+
+/* ---------- cross-examination ---------- */
+.exam-turn {
+  padding: 12px 0;
+  border-bottom: 1px solid var(--rule);
+}
+
+.exam-turn .n {
+  font-family: "Fraunces", Georgia, serif;
+  font-weight: 700;
+  color: var(--red);
+  margin-right: 6px;
+}
+
+.exam-q { margin: 0 0 6px; font-size: 15px; font-weight: 600; }
+.exam-a { margin: 0; font-size: 14.5px; line-height: 1.65; color: var(--ink-soft); }
+
+.exam-tools {
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 11.5px;
+  color: var(--ink-faint);
+}
+
+.exam-form {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.exam-form input {
+  background: var(--paper);
+  border: 1px solid var(--ink);
+  border-radius: 0;
+  color: var(--ink);
+  font-size: 15px;
+  padding: 11px 12px;
+  font-family: inherit;
+  outline: none;
+  min-width: 0;
+}
+
+.exam-form input:focus { border-color: var(--red); box-shadow: 0 0 0 1px var(--red); }
+
+.exam-form button {
+  background: var(--ink);
+  color: var(--paper);
+  border: 1px solid var(--ink);
+  border-radius: 0;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  padding: 0 18px;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.exam-form button:hover:not(:disabled) { background: var(--red-deep); border-color: var(--red-deep); }
+.exam-form button:disabled { opacity: 0.5; cursor: wait; }
+
 .colophon {
   margin-top: 34px;
   padding-top: 14px;
