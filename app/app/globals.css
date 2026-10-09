@@ -18,6 +18,8 @@ html, body {
   padding: 0;
   background: var(--ink);
   color: var(--paper);
+  --font-display: Georgia, "Times New Roman", serif;
+  --font-body: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   font-family: var(--font-body), system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
 }
