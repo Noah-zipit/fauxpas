@@ -7,6 +7,23 @@ import { BrandProfile, Market, TABOOS, TasteVector } from "./mock";
 
 export type Verdict = "LOVE" | "RISKY" | "CANCEL";
 
+// The four agents in the compilation pipeline.
+export type AgentId = "scout" | "analyst" | "redteam" | "editor";
+
+export interface AgentStep {
+  agent: AgentId;
+  action: string;
+  detail: string;
+  ms: number;
+}
+
+export const AGENT_LABEL: Record<AgentId, string> = {
+  scout: "Scout",
+  analyst: "Analyst",
+  redteam: "Red Team",
+  editor: "Editor",
+};
+
 export interface DomainGap {
   domain: keyof TasteVector;
   label: string;
@@ -37,7 +54,11 @@ export interface RiskReport {
   tabooHits: TabooHit[];
   moves: string[];
   narrative: string;
-  mock: boolean;
+  objections: string[];
+  trace: AgentStep[];
+  brandLive: boolean; // brand vector from the live taste graph
+  marketLive: boolean; // market vector from live venue signal
+  mock: boolean; // true only when both sides fell back
 }
 
 const DOMAINS: { key: keyof TasteVector; label: string }[] = [
@@ -101,7 +122,7 @@ export function buildReport(
   brand: BrandProfile,
   homeName: string,
   target: Market,
-  mock: boolean
+  opts: { brandLive: boolean; marketLive: boolean }
 ): RiskReport {
   const sim = cosine(brand.vector, target.taste);
   let score = Math.round(sim * 100);
@@ -183,6 +204,10 @@ export function buildReport(
     tabooHits,
     moves: moves.slice(0, 3),
     narrative,
-    mock,
+    objections: [],
+    trace: [],
+    brandLive: opts.brandLive,
+    marketLive: opts.marketLive,
+    mock: !opts.brandLive && !opts.marketLive,
   };
 }
