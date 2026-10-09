@@ -15,6 +15,7 @@ import { resolveBrand, resolveMarket } from "./qloo";
 import { buildReport, RiskReport, AgentStep, AgentId } from "./report";
 import { buildObjections } from "./redteam";
 import { maybeEnhanceNarrative } from "./narrative";
+import { llmProvider } from "./llm";
 
 async function timed<T>(
   trace: AgentStep[],
@@ -82,14 +83,36 @@ export async function runPipeline(
   report.objections = objections;
 
   // ---- EDITOR: write the dossier ----
+  const provider = llmProvider();
   report.narrative = await timed(
     trace,
     "editor",
     "Write the dossier",
     () => maybeEnhanceNarrative(report),
-    () => (process.env.GROQ_API_KEY ? "Narrative polished with Groq" : "Narrative from the engine brief")
+    () => (provider ? `Narrative polished with ${provider}` : "Narrative from the engine brief")
   );
 
   report.trace = trace;
   return report;
+}
+
+/**
+ * Lightweight scan for tool use (cross-examination, versus judge):
+ * Scout + Analyst only, no red team or narrative. Returns a compact summary.
+ */
+export async function quickScan(brand: string, marketId: string) {
+  const [brandRes, marketRes] = await Promise.all([resolveBrand(brand), resolveMarket(marketId)]);
+  const r = buildReport(brandRes.profile, "—", marketRes.market, {
+    brandLive: brandRes.live,
+    marketLive: marketRes.live,
+  });
+  return {
+    brand: r.brandName,
+    market: r.targetMarket,
+    score: r.score,
+    verdict: r.verdict,
+    gaps: r.gaps.slice(0, 3).map((g) => ({ domain: g.label, brand: g.brand, market: g.market, gap: g.gap })),
+    taboos: r.tabooHits.map((t) => ({ label: t.label, sensitivity: t.sensitivity })),
+    live: r.brandLive && r.marketLive,
+  };
 }
